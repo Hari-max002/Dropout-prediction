@@ -1,0 +1,27 @@
+{
+ "selected": "Logistic Regression",
+ "test_rows": 375,
+ "dropout_rate": 0.189,
+ "models": {
+  "Logistic Regression": {
+   "recall": 0.845,
+   "precision": 0.526,
+   "roc_auc": 0.903
+  },
+  "Random Forest": {
+   "recall": 0.817,
+   "precision": 0.611,
+   "roc_auc": 0.899
+  }
+ },
+ "feature_importance": {
+  "attendance_pct": 0.805,
+  "attendance_drop": 0.263,
+  "avg_marks": 0.406,
+  "marks_trend": 0.225,
+  "fee_delay_days": 0.452,
+  "missed_installments": 0.458,
+  "consecutive_absences": 0.084
+ },
+ "data": "synthetic"
+}
