@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Early Dropout Prediction System</title>
+<style>
+:root{--bg:#F6F7FB;--card:#fff;--text:#14203A;--muted:#5A6685;--line:#DDE2EE;--accent:#E8500C;--navy:#0F1F44;--hi:#C2410C;--hib:#FFE6D9;--me:#8A5A00;--meb:#FFF1CC;--lo:#1F6B4A;--lob:#DDF3E8}
+@media(prefers-color-scheme:dark){:root{--bg:#0B1226;--card:#141D38;--text:#EEF1FA;--muted:#A3AECB;--line:#26325A;--accent:#FF8A4C;--navy:#0B1226;--hi:#FFB08A;--hib:#4A2312;--me:#FFD97A;--meb:#4A3A0E;--lo:#8FE0B8;--lob:#123826}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;line-height:1.45}
+header{background:var(--navy);color:#F6F7FB;padding:18px 20px}header h1{margin:0;font-size:21px}header p{margin:4px 0 0;font-size:13px;color:#C9D1E6}
+main{max-width:1150px;margin:0 auto;padding:16px}.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}.stat b{display:block;font-size:28px;color:var(--accent)}.stat span{font-size:13px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:1.2fr 1fr;gap:16px}@media(max-width:820px){.grid{grid-template-columns:1fr}}
+h2{margin:0 0 10px;font-size:17px}select,button{font:inherit;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--text)}
+button.p{background:var(--accent);color:#fff;border:0;cursor:pointer;font-weight:600}.scroll{overflow:auto;max-height:520px}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:420px}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line)}
+th{position:sticky;top:0;background:var(--card);font-size:12px;color:var(--muted);text-transform:uppercase}tr.row{cursor:pointer}tr.row:hover,tr.sel{background:var(--bg)}
+.tag{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12px;font-weight:700}.High{background:var(--hib);color:var(--hi)}.Medium{background:var(--meb);color:var(--me)}.Low{background:var(--lob);color:var(--lo)}
+.bar{height:10px;background:var(--line);border-radius:6px;overflow:hidden;margin:4px 0 10px}.bar i{display:block;height:100%;background:var(--accent)}
+.rs{display:flex;justify-content:space-between;font-size:14px}ul{margin:6px 0 0;padding-left:20px;font-size:14px}.f{display:grid;grid-template-columns:150px 1fr;gap:8px;align-items:center;font-size:13px;margin:6px 0}
+input[type=number]{width:100%;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--text)}.err{color:var(--hi);font-size:13px;margin-top:6px}.note{font-size:12px;color:var(--muted);margin-top:12px}
+</style></head><body>
+<header><h1>Early Dropout Prediction System</h1><p id="sub">Connecting to API…</p></header>
+<main>
+<div class="stats" id="stats"></div>
+<div class="grid">
+<section class="card"><h2>Students by risk</h2>
+<select id="flt"><option value="">All tiers</option><option>High</option><option>Medium</option><option>Low</option></select>
+<div class="scroll" style="margin-top:10px"><table><thead><tr><th>ID</th><th>Risk</th><th>Tier</th><th>Attend.</th><th>Marks</th><th>Fee delay</th></tr></thead><tbody id="rows"><tr><td colspan="6">Loading…</td></tr></tbody></table></div></section>
+<div>
+<section class="card" id="detail"><h2>Student detail</h2><p style="font-size:14px;color:var(--muted)">Select a student.</p></section>
+<section class="card" style="margin-top:16px"><h2>Score a new student (POST /api/predict)</h2><div id="form"></div><button class="p" id="go" style="margin-top:8px">Predict risk</button><div id="res"></div></section>
+</div></div>
+<p class="note" id="foot"></p>
+</main>
+<script>
+var $=function(i){return document.getElementById(i)},sel=null;
+var FIELDS=[["attendance_pct","Attendance %",72],["attendance_drop","Attendance drop (pts)",10],["avg_marks","Average marks %",55],["marks_trend","Marks trend",-5],["fee_delay_days","Fee delay (days)",20],["missed_installments","Missed instalments",1],["consecutive_absences","Consecutive absences",3]];
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function api(u,o){return fetch(u,o).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.error||r.status);return j})})}
+function reasons(r){return r.length?'<h2 style="margin-top:12px">Why flagged</h2><ul>'+r.map(function(x){return'<li><b>'+esc(x.factor)+'</b> ('+Math.round(x.impact*100)+'% of risk signal)</li>'}).join('')+'</ul><h2 style="margin-top:12px">Suggested next steps</h2><ul>'+r.map(function(x){return'<li>'+esc(x.action)+'</li>'}).join('')+'</ul>':'<p style="font-size:14px">No strong risk factors. Keep monitoring.</p>'}
+function head(p,t){return'<div class="rs"><span>Risk score</span><b>'+Math.round(p*100)+'% <span class="tag '+t+'">'+t+'</span></b></div><div class="bar"><i style="width:'+Math.round(p*100)+'%"></i></div>'}
+function load(){var t=$('flt').value;api('/api/students'+(t?'?tier='+t:'')+(t?'&':'?')+'limit=60').then(function(d){
+$('stats').innerHTML=[['Students',d.total],['High risk',d.counts.High],['Medium risk',d.counts.Medium],['Low risk',d.counts.Low]].map(function(x){return'<div class="card stat"><b>'+x[1]+'</b><span>'+x[0]+'</span></div>'}).join('');
+$('rows').innerHTML=d.students.map(function(s){return'<tr class="row'+(s.student_id==sel?' sel':'')+'" data-id="'+s.student_id+'"><td>'+s.student_id+'</td><td>'+Math.round(s.risk*100)+'%</td><td><span class="tag '+s.tier+'">'+s.tier+'</span></td><td>'+s.attendance_pct+'%</td><td>'+s.avg_marks+'%</td><td>'+s.fee_delay_days+'d</td></tr>'}).join('');
+if(!sel&&d.students[0])show(d.students[0].student_id)}).catch(function(e){$('rows').innerHTML='<tr><td colspan="6" class="err">API error: '+esc(e.message)+'</td></tr>'})}
+function show(id){sel=id;api('/api/students/'+id).then(function(s){$('detail').innerHTML='<h2>'+s.student_id+'</h2>'+head(s.risk,s.tier)+'<div style="font-size:14px">Attendance '+s.attendance_pct+'% (drop '+s.attendance_drop+') · Marks '+s.avg_marks+'% (trend '+s.marks_trend+') · Fee delay '+s.fee_delay_days+'d · Missed '+s.missed_installments+' · Consecutive absences '+s.consecutive_absences+'</div>'+reasons(s.reasons);
+document.querySelectorAll('tr.row').forEach(function(r){r.classList.toggle('sel',r.dataset.id==id)})}).catch(function(e){$('detail').innerHTML='<p class="err">'+esc(e.message)+'</p>'})}
+$('form').innerHTML=FIELDS.map(function(f){return'<div class="f"><label for="in_'+f[0]+'">'+f[1]+'</label><input type="number" step="any" id="in_'+f[0]+'" value="'+f[2]+'"></div>'}).join('');
+$('go').onclick=function(){var b={};FIELDS.forEach(function(f){b[f[0]]=$('in_'+f[0]).value});
+api('/api/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).then(function(r){$('res').innerHTML='<div style="margin-top:10px">'+head(r.risk,r.tier)+reasons(r.reasons)+'</div>'}).catch(function(e){$('res').innerHTML='<div class="err">'+esc(e.message)+'</div>'})};
+$('rows').onclick=function(e){var r=e.target.closest('tr.row');if(r)show(r.dataset.id)};$('flt').onchange=load;
+api('/api/health').then(function(h){$('sub').textContent='API online · model: '+h.model+' · '+h.students+' synthetic students'});
+api('/api/metrics').then(function(m){var s=m.models[m.selected];$('foot').textContent='Held-out test ('+m.test_rows+' students, synthetic data): recall '+s.recall+', precision '+s.precision+', ROC-AUC '+s.roc_auc+'. Risk scores support counsellors; they do not replace them.'});
+load();
+</script></body></html>
